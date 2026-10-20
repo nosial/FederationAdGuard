@@ -1,0 +1,17 @@
+source: src
+default_build: release
+assembly:
+  name: FederationAdGuard
+  package: net.nosial.federation_adguard
+  version: 1.0.0
+build_configurations:
+  -
+    name: debug
+    output: 'target/debug/${ASSEMBLY.PACKAGE}.ncc'
+    type: ncc
+    definitions:
+      NCC_DEBUG: true
+  -
+    name: release
+    output: 'target/release/${ASSEMBLY.PACKAGE}.ncc'
+    type: ncc
