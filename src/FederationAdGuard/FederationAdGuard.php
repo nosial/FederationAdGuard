@@ -2,6 +2,9 @@
 
     namespace FederationAdGuard;
 
+    use FederationAdGuard\Exceptions\RuleException;
+    use FederationLib\Exceptions\CacheOperationException;
+    use FederationLib\Exceptions\DatabaseOperationException;
     use FederationAdGuard\Classes\DatabaseRuleSource;
     use FederationAdGuard\Classes\FilterListsClient;
     use FederationAdGuard\Classes\ListDownloader;
@@ -103,6 +106,9 @@
          *
          * @param MatchTarget $target The target
          * @return MatchResult The rules that apply
+         * @throws DatabaseOperationException If a database operation fails
+         * @throws CacheOperationException If a cache operation fails
+         * @throws RuleException If the distinct candidate limit is exceeded
          */
         public static function match(MatchTarget $target): MatchResult
         {
