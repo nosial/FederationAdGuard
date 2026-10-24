@@ -22,7 +22,7 @@
         private static ?FilterListsClientInterface $filterListsClient = null;
 
         /**
-         * Returns the rules of the enabled subscriptions
+         * Returns the rules of the subscribed lists
          *
          * @return RuleSourceInterface The rules
          */
@@ -37,7 +37,7 @@
         }
 
         /**
-         * Replaces the rules, null resets them to the rules of the enabled subscriptions
+         * Replaces the rules, null resets them to the rules of the subscribed lists
          *
          * @param RuleSourceInterface|null $ruleSource The rules
          * @return void
@@ -60,18 +60,6 @@
             }
 
             return self::$downloader;
-        }
-
-        /**
-         * Replaces the downloader, null resets it to the downloader created from the plugin's configuration
-         *
-         * @param ListDownloaderInterface|null $downloader The downloader
-         * @return void
-         */
-        public static function setDownloader(?ListDownloaderInterface $downloader): void
-        {
-            self::$downloader = $downloader;
-            self::$filterListsClient = null;
         }
 
         /**
@@ -102,7 +90,7 @@
         }
 
         /**
-         * Matches a target against the rules of the enabled subscriptions
+         * Matches a target against the rules of the subscribed lists
          *
          * @param MatchTarget $target The target
          * @return MatchResult The rules that apply
