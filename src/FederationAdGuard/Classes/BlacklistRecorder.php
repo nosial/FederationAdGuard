@@ -6,6 +6,7 @@
     use FederationAdGuard\Classes\Managers\FindingManager;
     use FederationAdGuard\Classes\Managers\SubscriptionManager;
     use FederationAdGuard\Enums\FindingState;
+    use FederationAdGuard\Exceptions\RecordingException;
     use FederationAdGuard\Objects\RuleMatch;
     use FederationLib\Classes\Managers\AuditLogManager;
     use FederationLib\Classes\Managers\BlacklistManager;
@@ -18,7 +19,6 @@
     use FederationLib\Objects\BlacklistRecord;
     use FederationLib\Objects\EntityRecord;
     use InvalidArgumentException;
-    use Throwable;
 
     class BlacklistRecorder
     {
@@ -50,8 +50,8 @@
          * @return string|null The UUID of the blacklist record that applies, null if none does
          * @throws DatabaseOperationException If there is an error preparing or executing the SQL statement.
          * @throws CacheOperationException If there is an error during a cache operation.
-         * @throws InvalidArgumentException If the blacklist record cannot be created.
-         * @throws Throwable If the plugin operator is unavailable.
+         * @throws InvalidArgumentException If the blacklist record or the finding is invalid.
+         * @throws RecordingException If the plugin operator is unavailable.
          */
         public static function blacklist(EntityRecord $entity, RuleMatch $match): ?string
         {
@@ -88,22 +88,25 @@
                 return FindingManager::getFinding($entity->getUuid(), $concern)?->getBlacklistUuid();
             }
 
+            $activated = false;
             try
             {
                 $operatorUuid = PluginOperator::get()->getUuid();
                 $blacklistUuid = BlacklistManager::blacklistEntity($entity->getUuid(), $operatorUuid, $concern);
                 FindingManager::activateFinding($entity->getUuid(), $concern, $blacklistUuid);
+                $activated = true;
 
                 AuditLogManager::createEntry(AuditLogType::ENTITY_BLACKLISTED, sprintf(
                     'Entity %s blacklisted by FederationAdGuard with type %s, it is listed by %s (%s)',
                     $entity->getLoggableAddress(), $concern->name, self::getListName($rule->getSubscriptionId()), mb_strcut($rule->getRule(), 0, 256)
                 ), $operatorUuid, $entity->getUuid(), $blacklistUuid);
             }
-            catch(Throwable $e)
+            finally
             {
-                // The host is claimed again by the next request or maintenance run that finds it
-                FindingManager::updateState($entity->getUuid(), $concern, FindingState::LIFTED, [FindingState::PENDING]);
-                throw $e;
+                if(!$activated)
+                {
+                    FindingManager::updateState($entity->getUuid(), $concern, FindingState::LIFTED, [FindingState::PENDING]);
+                }
             }
 
             return $blacklistUuid;
@@ -118,6 +121,8 @@
          * @return bool True if the plugin's blacklist record was lifted
          * @throws DatabaseOperationException If there is an error preparing or executing the SQL statement.
          * @throws CacheOperationException If there is an error during a cache operation.
+         * @throws InvalidArgumentException If FederationLib rejects the UUID of the blacklist record.
+         * @throws RecordingException If the plugin operator is unavailable.
          */
         public static function lift(string $entityUuid, IncidentType $concern, string $reason): bool
         {
@@ -151,7 +156,8 @@
          * @return int The number of lifted blacklist records
          * @throws DatabaseOperationException If there is an error preparing or executing the SQL statement.
          * @throws CacheOperationException If there is an error during a cache operation.
-         * @throws Throwable If the plugin operator is unavailable.
+         * @throws InvalidArgumentException If FederationLib rejects the UUID of a blacklist record.
+         * @throws RecordingException If the plugin operator is unavailable.
          */
         public static function liftEntity(string $entityUuid, string $reason): int
         {
@@ -204,6 +210,7 @@
          * @return int The number of repaired findings
          * @throws DatabaseOperationException If there is an error preparing or executing the SQL statement.
          * @throws CacheOperationException If there is an error during a cache operation.
+         * @throws InvalidArgumentException If FederationLib rejects the UUID of a blacklist record.
          */
         public static function repairAbandoned(): int
         {
@@ -248,7 +255,7 @@
             {
                 return SubscriptionManager::getNames()[$subscriptionId] ?? sprintf('subscription %d', $subscriptionId);
             }
-            catch(Throwable)
+            catch(DatabaseOperationException|CacheOperationException)
             {
                 return sprintf('subscription %d', $subscriptionId);
             }
