@@ -2,7 +2,7 @@
 
     namespace FederationAdGuard\Classes;
 
-    use FederationAdGuard\Exceptions\DownloadException;
+    use FederationAdGuard\Exceptions\ListException;
     use FederationAdGuard\Interfaces\ListDownloaderInterface;
     use FederationAdGuard\Objects\DownloadResult;
     use JsonException;
@@ -37,7 +37,7 @@
         {
             if(!is_dir($this->directory) && !@mkdir($this->directory, 0700, true) && !is_dir($this->directory))
             {
-                throw new DownloadException('Unable to create the download cache directory');
+                throw new ListException('Unable to create the download cache directory');
             }
 
             $key = hash('sha256', $url . "\n" . $accept);
@@ -45,14 +45,14 @@
             $lock = @fopen($path . '.lock', 'c');
             if($lock === false)
             {
-                throw new DownloadException('Unable to open the download cache lock');
+                throw new ListException('Unable to open the download cache lock');
             }
 
             try
             {
                 if(!flock($lock, LOCK_EX))
                 {
-                    throw new DownloadException('Unable to lock the download cache');
+                    throw new ListException('Unable to lock the download cache');
                 }
 
                 $cached = is_file($path) ? json_decode((string)file_get_contents($path), true) : null;
@@ -69,7 +69,7 @@
                 }
                 if(($cached['retry_after'] ?? 0) > time())
                 {
-                    throw new DownloadException('Cached download failure: ' . ($cached['error'] ?? 'unknown error'), (int)($cached['code'] ?? 0));
+                    throw new ListException('Cached download failure: ' . ($cached['error'] ?? 'unknown error'), (int)($cached['code'] ?? 0));
                 }
 
                 if(!isset($cached['contents']) || ($cached['expires'] ?? 0) <= time())
@@ -79,7 +79,7 @@
                         $result = $this->downloader->download($url, isset($cached['contents']) ? ($cached['validators'] ?? []) : [], $accept);
                         if($result->isNotModified() && !isset($cached['contents']))
                         {
-                            throw new DownloadException('Received HTTP 304 without cached contents');
+                            throw new ListException('Received HTTP 304 without cached contents');
                         }
                         $cached = [
                             'contents' => $result->isNotModified() ? $cached['contents'] : base64_encode($result->getContents()),
@@ -87,7 +87,7 @@
                             'expires' => time() + max(1, $this->ttl),
                         ];
                     }
-                    catch(DownloadException $e)
+                    catch(ListException $e)
                     {
                         $cached['retry_after'] = time() + max(1, $this->retryInterval);
                         $cached['error'] = $e->getMessage();
@@ -106,7 +106,7 @@
                 $contents = base64_decode($cached['contents'], true);
                 if($contents === false)
                 {
-                    throw new DownloadException('The cached response is corrupt');
+                    throw new ListException('The cached response is corrupt');
                 }
 
                 return new DownloadResult($unchanged ? null : $contents, $stored['etag'] ?? null, $stored['last_modified'] ?? null);
@@ -123,7 +123,7 @@
          *
          * @param string $path The cache file
          * @param array $data The response or retry state
-         * @throws DownloadException If the cache cannot be encoded or saved
+         * @throws ListException If the cache cannot be encoded or saved
          * @return void
          */
         private static function write(string $path, array $data): void
@@ -134,13 +134,13 @@
             }
             catch(JsonException $e)
             {
-                throw new DownloadException('Unable to encode the download cache', 0, $e);
+                throw new ListException('Unable to encode the download cache', 0, $e);
             }
 
             $temporary = $path . '.tmp';
             if(file_put_contents($temporary, $encoded) === false || !rename($temporary, $path))
             {
-                throw new DownloadException('Unable to save the download cache');
+                throw new ListException('Unable to save the download cache');
             }
         }
     }
