@@ -118,7 +118,6 @@
          * @return bool True if the plugin's blacklist record was lifted
          * @throws DatabaseOperationException If there is an error preparing or executing the SQL statement.
          * @throws CacheOperationException If there is an error during a cache operation.
-         * @throws Throwable If the plugin operator is unavailable.
          */
         public static function lift(string $entityUuid, IncidentType $concern, string $reason): bool
         {
@@ -139,8 +138,7 @@
             $operatorUuid = PluginOperator::get()->getUuid();
             BlacklistManager::liftBlacklistRecord($finding->getBlacklistUuid(), $operatorUuid);
             FindingManager::updateState($entityUuid, $concern, FindingState::LIFTED, [FindingState::ACTIVE]);
-            AuditLogManager::createEntry(AuditLogType::BLACKLIST_LIFTED, sprintf('Blacklist record lifted by FederationAdGuard: %s', $reason),
-                $operatorUuid, $entityUuid, $finding->getBlacklistUuid());
+            AuditLogManager::createEntry(AuditLogType::BLACKLIST_LIFTED, sprintf('Blacklist record lifted by FederationAdGuard: %s', $reason), $operatorUuid, $entityUuid, $finding->getBlacklistUuid());
 
             return true;
         }
