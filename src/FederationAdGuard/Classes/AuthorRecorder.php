@@ -4,20 +4,23 @@
 
     use FederationAdGuard\Classes\Configuration\DatabaseConfiguration;
     use FederationAdGuard\Classes\Configuration\ScanningConfiguration;
+    use FederationAdGuard\Exceptions\RecordingException;
     use FederationAdGuard\Objects\RuleMatch;
     use FederationLib\Classes\Configuration as FederationConfiguration;
     use FederationLib\Classes\DatabaseConnection;
     use FederationLib\Classes\Managers\AuditLogManager;
-    use FederationLib\Classes\Managers\BlacklistManager;
+    use Federationhttps://github.com/fastvolt/markdownLib\Classes\Managers\BlacklistManager;
     use FederationLib\Classes\Managers\EntitiesManager;
     use FederationLib\Classes\Managers\EvidenceManager;
     use FederationLib\Classes\Utilities;
     use FederationLib\Enums\AuditLogType;
     use FederationLib\Enums\ContentType;
     use FederationLib\Enums\IncidentType;
+    use FederationLib\Exceptions\DatabaseOperationException;
     use FederationLib\Objects\EntityRecord;
     use FederationLib\Objects\Plugin\ContentScan;
-    use Throwable;
+    use InvalidArgumentException;
+    use PDOException;
 
     class AuthorRecorder
     {
@@ -62,9 +65,10 @@
          * @param int $evidenceIndex The index of the evidence item
          * @param array<string, RuleMatch> $listed The strongest full match of each distinct listed host the item links to
          * @param int $hosts The number of distinct hosts the item links to, listed or not
-         * @return string|null The UUID of the blacklist record, or of the evidence if the author isn't blacklisted, null
-         *                     if nothing was recorded
-         * @throws Throwable If the author cannot be recorded
+         * @return string|null The UUID of the blacklist record, or of the evidence if the author isn't blacklisted, null if nothing was recorded
+         * @throws DatabaseOperationException If there is an error with the database
+         * @throws InvalidArgumentException If FederationLib rejects the author, the evidence or the blacklist record
+         * @throws RecordingException If the plugin operator is unavailable
          */
         public static function record(ContentScan $contentScan, int $evidenceIndex, array $listed, int $hosts): ?string
         {
@@ -121,13 +125,13 @@
                 $repeat = self::hasRecentOffence($author, $operatorUuid);
                 $duration = $repeat ? Configuration::getDatabaseConfiguration()->getAuthorBlacklist() : null;
                 $summary = sprintf('it linked to %d listed host(s) of %d (%s)', count($listed), $hosts, mb_strcut(implode(', ', array_keys($listed)), 0, 256));
-
                 $evidenceUuid = null;
                 $blacklistUuid = null;
                 $connection = DatabaseConnection::getConnection();
-                $connection->beginTransaction();
+
                 try
                 {
+                    $connection->beginTransaction();
                     $evidenceUuid = EvidenceManager::addEvidence(
                         entity: $author->getUuid(), operator: $operatorUuid, textContent: $item->getTextContent(), note: self::EVIDENCE_NOTE,
                         tag: self::EVIDENCE_TAG, confidential: true, metadata: self::getMetadata($listed, $hosts, $repeat),
@@ -146,14 +150,17 @@
 
                     $connection->commit();
                 }
-                catch(Throwable $e)
+                catch(PDOException $e)
                 {
+                    throw new DatabaseOperationException('Failed to record the author: ' . $e->getMessage(), (int)$e->getCode(), $e);
+                }
+                finally
+                {
+                    // Only still open if the author wasn't recorded
                     if($connection->inTransaction())
                     {
                         $connection->rollBack();
                     }
-
-                    throw $e;
                 }
 
                 Logger::log()->info(sprintf('Recorded the author %s for %s (%s), %s', $author->getLoggableAddress(), self::CONCERN->value,
@@ -172,7 +179,8 @@
          * @param EntityRecord $author The author
          * @param string $operatorUuid The UUID of the plugin operator
          * @return bool True if this is a repeat offence
-         * @throws Throwable If the evidence cannot be read
+         * @throws DatabaseOperationException If the evidence cannot be read
+         * @throws InvalidArgumentException If FederationLib rejects the UUID of the author
          */
         private static function hasRecentOffence(EntityRecord $author, string $operatorUuid): bool
         {
@@ -201,7 +209,8 @@
          *
          * @param ContentScan $contentScan The content scan
          * @return EntityRecord|null The author, null if the scan has none
-         * @throws Throwable If the author cannot be resolved
+         * @throws DatabaseOperationException If the author cannot be resolved
+         * @throws InvalidArgumentException If FederationLib rejects the address of the author
          */
         private static function getAuthor(ContentScan $contentScan): ?EntityRecord
         {
