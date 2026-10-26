@@ -7,7 +7,7 @@
     use FederationAdGuard\Objects\SubscriptionDefinition;
     use FederationLib\Classes\Configuration\ConfigurationValues;
     use FederationLib\Enums\IncidentType;
-    use FederationAdGuard\Exceptions\ConfigurationException;
+    use InvalidArgumentException;
 
     class ListsConfiguration
     {
@@ -66,7 +66,7 @@
                     $definition = SubscriptionDefinition::parse(is_int($entry) ? (string)$entry : $entry);
                     $this->subscriptions[$definition->getKey()] = $definition;
                 }
-                catch(ConfigurationException $e)
+                catch(InvalidArgumentException $e)
                 {
                     $this->complete = false;
                     Logger::log()->warning(sprintf('Ignoring the entry %s of lists: %s', is_string($entry) ? '"' . $entry . '"' : json_encode($entry), $e->getMessage()));
@@ -81,9 +81,9 @@
             {
                 try
                 {
-                    $definition = is_string($entry) ? CustomRuleDefinition::parse($entry, self::DEFAULT_RULE_CONCERN) : throw new ConfigurationException('A rule must be a string');
+                    $definition = is_string($entry) ? CustomRuleDefinition::parse($entry, self::DEFAULT_RULE_CONCERN) : throw new InvalidArgumentException('A rule must be a string');
                 }
-                catch(ConfigurationException $e)
+                catch(InvalidArgumentException $e)
                 {
                     $this->rulesComplete = false;
                     Logger::log()->warning(sprintf('Ignoring the rule %s of rules: %s', is_string($entry) ? '"' . $entry . '"' : json_encode($entry), $e->getMessage()));
