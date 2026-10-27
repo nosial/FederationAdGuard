@@ -1,0 +1,30 @@
+{
+    "tags": [
+        {"id": 1, "name": "ads", "description": "Blocks advertisements"},
+        {"id": 2, "name": "privacy", "description": "Blocks tracking"},
+        {"id": 3, "name": "malware", "description": "Blocks malware"},
+        {"id": 4, "name": "allowlist", "description": "Unblocks what other lists block"},
+        {"id": 5, "name": "nsfw", "description": "Not safe for work"}
+    ],
+    "languages": [
+        {"id": 1, "iso6391": "en", "name": "English"},
+        {"id": 2, "iso6391": "de", "name": "German"}
+    ],
+    "syntaxes": [
+        {"id": 1, "name": "Adblock Plus", "description": null},
+        {"id": 2, "name": "Domains", "description": null},
+        {"id": 3, "name": "Hosts (localhost IPv4)", "description": null},
+        {"id": 4, "name": "Domains for whitelisting", "description": null},
+        {"id": 5, "name": "uBlock Origin scriptlet injection", "description": null}
+    ],
+    "lists": [
+        {"id": 1, "name": "EasyList", "syntaxIds": [1], "languageIds": [1], "tagIds": [1], "file": "easylist.txt"},
+        {"id": 2, "name": "EasyPrivacy", "syntaxIds": [1], "languageIds": [1], "tagIds": [2], "file": "easyprivacy.txt"},
+        {"id": 3, "name": "German Ads", "syntaxIds": [1], "languageIds": [2], "tagIds": [1], "file": "german.txt"},
+        {"id": 4, "name": "Malware Domains", "syntaxIds": [2], "languageIds": [], "tagIds": [3], "file": "malware.txt"},
+        {"id": 5, "name": "NSFW Ads", "syntaxIds": [1], "languageIds": [1], "tagIds": [1, 5], "file": "nsfw.txt"},
+        {"id": 6, "name": "Allowed Domains", "syntaxIds": [4], "languageIds": [], "tagIds": [4], "file": "allowed.txt"},
+        {"id": 7, "name": "Scriptlets", "syntaxIds": [5], "languageIds": [1], "tagIds": [1], "file": "scriptlets.txt"},
+        {"id": 8, "name": "Ad Hosts", "syntaxIds": [3], "languageIds": [], "tagIds": [1], "file": "hosts.txt"}
+    ]
+}

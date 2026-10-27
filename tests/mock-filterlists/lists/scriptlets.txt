@@ -1,0 +1,1 @@
+||scriptlets.adguard-test.invalid^

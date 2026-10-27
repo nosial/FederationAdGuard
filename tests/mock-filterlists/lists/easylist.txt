@@ -1,0 +1,9 @@
+[Adblock Plus 2.0]
+! Title: Mock EasyList
+! The advertising list of the test environment, every host is reserved (.invalid) and never resolves
+||ads.adguard-test.invalid^
+||banner.adguard-test.invalid^
+||promo.adguard-test.invalid^
+||cdn.adguard-test.invalid/ads/*
+||thirdparty.adguard-test.invalid^$third-party
+@@||allowed.ads.adguard-test.invalid^
