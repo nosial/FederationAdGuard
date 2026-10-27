@@ -1,0 +1,65 @@
+name: federation-adguard-test
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      # FederationLib (SERVER_ENDPOINT)
+      - "${FEDERATION_PORT:-7000}:7000"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # FederationLib Configuration
+      - FEDERATION_DATABASE_HOST=mariadb
+      - FEDERATION_DATABASE_PORT=3306
+      - FEDERATION_DATABASE_USERNAME=federation
+      - FEDERATION_DATABASE_PASSWORD=federation
+      - FEDERATION_DATABASE_NAME=federation
+      - FEDERATION_REDIS_ENABLED=true
+      - FEDERATION_REDIS_HOST=redis
+      - FEDERATION_REDIS_PORT=6379
+      - FEDERATION_ACCESS_TOKEN=${FEDERATION_ACCESS_TOKEN:-abcdefghijklmnopqrstuvwxyz123456}
+      # Installed by docker-entrypoint.sh before `federationlib init`, which creates the plugin's tables
+      - REQUIRE_PLUGINS=/opt/federationlib/plugins/net.nosial.federation_adguard.ncc
+      # The plugins FederationLib loads
+      - FEDERATION_PLUGINS=net.nosial.federation_adguard
+      # The plugin's configuration is its default too: it discovers its lists in the real FilterLists directory and
+      # downloads the real lists
+
+  mariadb:
+    image: mariadb:latest
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: federation_root
+      MYSQL_DATABASE: federation
+      MYSQL_USER: federation
+      MYSQL_PASSWORD: federation
+    expose:
+      - "3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  redis:
+    image: redis:alpine
+    command: redis-server
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  mariadb_data:
