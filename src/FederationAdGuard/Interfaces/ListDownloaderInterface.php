@@ -2,7 +2,7 @@
 
     namespace FederationAdGuard\Interfaces;
 
-    use FederationAdGuard\Exceptions\DownloadException;
+    use FederationAdGuard\Exceptions\ListException;
     use FederationAdGuard\Objects\DownloadResult;
 
     interface ListDownloaderInterface
@@ -15,7 +15,7 @@
          *        download the contents only if they changed
          * @param string $accept The media types accepted
          * @return DownloadResult The result
-         * @throws DownloadException If the URL could not be downloaded
+         * @throws ListException If the URL could not be downloaded
          */
         public function download(string $url, array $validators=[], string $accept='text/plain, */*'): DownloadResult;
     }
