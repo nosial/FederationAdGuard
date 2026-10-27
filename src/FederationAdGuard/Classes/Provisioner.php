@@ -62,7 +62,7 @@
                 try
                 {
                     $declared = ListCatalog::discover(FederationAdGuard::getFilterListsClient(), $filterLists->getConcerns(),
-                        $filterLists->getLanguages(), $filterLists->getExclude(), $filterLists->getMax());
+                        $filterLists->getLanguages(), $filterLists->getExclude(), $filterLists->getMax(), $filterLists->getPreferred());
                     Logger::log()->debug(sprintf('Selected %d list(s) from the FilterLists directory', count($declared)));
                 }
                 catch(ListException $e)
