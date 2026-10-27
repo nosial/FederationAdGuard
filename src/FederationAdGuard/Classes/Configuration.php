@@ -44,6 +44,7 @@
             self::$configuration->setDefault('filterlists.languages', 'en', 'FEDERATION_ADGUARD_FILTERLISTS_LANGUAGES');
             self::$configuration->setDefault('filterlists.max', 4, 'FEDERATION_ADGUARD_FILTERLISTS_MAX');
             self::$configuration->setDefault('filterlists.exclude', '', 'FEDERATION_ADGUARD_FILTERLISTS_EXCLUDE');
+            self::$configuration->setDefault('filterlists.preferred', implode(',', FilterListsConfiguration::DEFAULT_PREFERRED), 'FEDERATION_ADGUARD_FILTERLISTS_PREFERRED');
             self::$configuration->setDefault('filterlists.endpoint', FilterListsConfiguration::DEFAULT_ENDPOINT, 'FEDERATION_ADGUARD_FILTERLISTS_ENDPOINT');
 
             // The ADGUARD_* scanning rules, -15 reaches the default block threshold on its own
