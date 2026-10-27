@@ -35,9 +35,12 @@
         public const array SYNTAX_PREFERENCE = ['adblock plus', 'ublock origin static', 'adguard', 'adblocker-syntax domains', 'domains'];
 
         /**
-         * The well-known lists that are discovered first when they are eligible
+         * The FilterLists IDs discovered first by default when they are eligible: EasyList (301), EasyPrivacy (242),
+         * AdGuard Base Filter without EasyList (2214) so the two don't overlap, and AdGuard Tracking Protection Filter
+         * (157), the Chromium build since the directory tags the uBlock Origin build as Portuguese. Lists tagged both
+         * ads and privacy are left out, their trackers would count as advertising.
          */
-        public const array PREFERRED_LISTS = ['easylist', 'easyprivacy', 'adguard base filter', 'adguard tracking protection filter'];
+        public const array DEFAULT_PREFERRED = [301, 242, 2214, 157];
 
         /**
          * How long the directory's responses are cached on disk, in seconds
@@ -57,6 +60,8 @@
         private int $max;
         /** @var int[] */
         private array $exclude;
+        /** @var int[] */
+        private array $preferred;
         private string $endpoint;
 
         /**
@@ -76,6 +81,9 @@
             );
             $this->max = max(0, min(500, (int)($configuration['max'] ?? 4)));
             $this->exclude = array_map('intval', self::parseValidated('filterlists.exclude', $configuration['exclude'] ?? [], [],
+                fn(string $value) => filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) !== false ? $value : null
+            ));
+            $this->preferred = array_map('intval', self::parseValidated('filterlists.preferred', $configuration['preferred'] ?? self::DEFAULT_PREFERRED, self::DEFAULT_PREFERRED,
                 fn(string $value) => filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) !== false ? $value : null
             ));
 
@@ -140,6 +148,16 @@
         public function getExclude(): array
         {
             return $this->exclude;
+        }
+
+        /**
+         * Returns the FilterLists IDs discovered first when they are eligible, in this order
+         *
+         * @return int[] The IDs, empty to discover by the other lists' syntax and name alone
+         */
+        public function getPreferred(): array
+        {
+            return $this->preferred;
         }
 
         /**
