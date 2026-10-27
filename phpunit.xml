@@ -6,5 +6,20 @@
     </testsuites>
     <php>
         <ini name="error_reporting" value="-1"/>
+
+        <!-- ncc configuration -->
+        <env name="NCC_DISABLE_APCU" value="1"/>
+
+        <!-- Federation Server configuration -->
+        <env name="SERVER_ENDPOINT" value="http://172.17.0.1:7000"/>
+        <env name="SERVER_ACCESS_TOKEN" value="abcdefghijklmnopqrstuvwxyz123456"/>
+
+        <!-- LogLib2 configuration -->
+        <env name="LOG_LEVEL" value="debug"/>
+        <env name="LOGLIB_CONSOLE_ENABLED" value="false"/>
+        <env name="LOGLIB_UDP_ENABLED" value="true"/>
+        <env name="LOGLIB_UDP_HOST" value="127.0.0.1"/>
+        <env name="LOGLIB_UDP_PORT" value="5000"/>
+        <env name="LOGLIB_UDP_TRACE_FORMAT" value="full"/>
     </php>
 </phpunit>
