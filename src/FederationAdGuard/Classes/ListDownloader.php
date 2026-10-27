@@ -244,10 +244,10 @@
                 $authority .= ':' . $parts['port'];
             }
 
-            $normalized = $scheme . '://' . $authority . ($parts['path'] ?? '/');
+            $normalized = $scheme . '://' . $authority . self::encodeUnsafe($parts['path'] ?? '/');
             if(isset($parts['query']))
             {
-                $normalized .= '?' . $parts['query'];
+                $normalized .= '?' . self::encodeUnsafe($parts['query']);
             }
 
             return [
@@ -256,6 +256,19 @@
                 'port' => (int)$port,
                 'address' => $isAddress ? null : $addresses[0],
             ];
+        }
+
+        /**
+         * Percent-encodes the characters a URL can't contain as they are, e.g., the spaces in some of the directory's
+         * list URLs, without encoding what is already encoded
+         *
+         * @param string $value The path or query of a URL
+         * @return string The encoded path or query
+         */
+        private static function encodeUnsafe(string $value): string
+        {
+            return preg_replace_callback('#[^A-Za-z0-9\-._~!$&\'()*+,;=:@/?%]|%(?![0-9A-Fa-f]{2})#',
+                fn(array $matches) => rawurlencode($matches[0]), $value);
         }
 
         /**
