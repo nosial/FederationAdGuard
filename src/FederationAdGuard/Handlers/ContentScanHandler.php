@@ -26,24 +26,6 @@
     use FederationLib\Objects\ScannedContent\ResolvedEntity;
     use InvalidArgumentException;
 
-    /**
-     * Matches the hosts and URLs of every content scan against the lists, and contributes to the scan like
-     * FederationLib's own scanning rules do (the risk score starts at a neutral 50, points tip it):
-     *
-     *  - A listed host or URL is a detection (its source is the name of the list) and the ADGUARD_<CONCERN> rule adds
-     *    scanning.points for a host or URL that was submitted itself, scanning.link_points for a link in a message. A
-     *    host FederationLib already blacklists is only topped up to those points, so a host scores the same whether or
-     *    not it was recorded yet.
-     *  - When the plugin checked something and nothing is listed, ADGUARD_UNLISTED lowers the risk slightly
-     *    (scanning.unlisted_points). A scan the plugin had nothing to check in (e.g., a text without links) is left
-     *    alone.
-     *  - A message that is little more than listed links is spam, ADGUARD_LINK_SPAM adds scanning.spam_points as SPAM and
-     *    its author is recorded (see AuthorRecorder).
-     *
-     * Only the concerns of the request affect the result (FederationLib discards the others), but what the plugin
-     * records in the database never depends on them (see FindingRecorder). A failure of the plugin never fails the
-     * scan, the scan continues without the plugin's contribution.
-     */
     class ContentScanHandler implements ContentScanEventHandlerInterface
     {
         /**
