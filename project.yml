@@ -1,9 +1,24 @@
 source: src
 default_build: release
+update_source: nosial/federationadguard@n64
+repository:
+  name: n64
+  type: github
+  host: git.n64.cc
+  ssl: true
 assembly:
   name: FederationAdGuard
   package: net.nosial.federation_adguard
   version: 1.0.0
+  url: 'https://github.com/nosial/FederationAdGuard'
+  license: 'MIT'
+  description: 'FederationAdGuard is a FederationLib plugin that checks hosts and URLs against advertising, tracking and other filter lists'
+  author: 'Netkas <netkas@nosial.net>'
+  organization: 'Nosial'
+  product: 'Federation'
+  copyright: 'Copyright (c) 2022-2026 Nosial'
+dependencies:
+  net.nosial.federation: nosial/federationlib@github
 build_configurations:
   -
     name: debug
@@ -11,7 +26,36 @@ build_configurations:
     type: ncc
     definitions:
       NCC_DEBUG: true
+    options:
+      federationlib: &federationlib
+        # The hosts found in scanned content are recorded (evidence, metadata and blacklist records), the server
+        # discloses it through collects_public_scan_content
+        collects_scan_content: true
+        event_handlers:
+          # Creates the plugin's tables and operator, provisions the configured lists and rules and loads new lists
+          -
+            event: STARTUP
+            class: \FederationAdGuard\Handlers\StartupHandler::class
+          # Provisions the configured lists and rules, updates the lists that are due and checks a batch of entities
+          -
+            event: MAINTENANCE
+            class: \FederationAdGuard\Handlers\MaintenanceHandler::class
+          # Matches the hosts and URLs of every content scan against the lists, adding detections and scanning rules
+          -
+            event: CONTENT_SCAN
+            class: \FederationAdGuard\Handlers\ContentScanHandler::class
+          # Adds the findings of a queried host entity, its metadata and blacklist records, to the response
+          -
+            event: QUERY_ENTITY
+            class: \FederationAdGuard\Handlers\QueryEntityHandler::class
+          # Checks new host entities, and follows whitelists, deleted entities and the operators' lifts and deletions
+          -
+            event: RECORD_CHANGE
+            class: \FederationAdGuard\Handlers\RecordChangeHandler::class
+            filter: ENTITY_CREATED, ENTITY_UPDATED, ENTITY_DELETED, BLACKLIST_LIFTED, BLACKLIST_DELETED
   -
     name: release
     output: 'target/release/${ASSEMBLY.PACKAGE}.ncc'
     type: ncc
+    options:
+      federationlib: *federationlib
