@@ -1,4 +1,0 @@
-[Adblock Plus 2.0]
-! Title: Mock EasyPrivacy
-||tracker.adguard-test.invalid^
-||analytics.adguard-test.invalid^$script,third-party
