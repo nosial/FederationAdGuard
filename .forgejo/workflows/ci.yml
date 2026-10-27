@@ -1,0 +1,270 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+  release:
+    types: [created]
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/nosial/ncc:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Build project
+        run: |
+          ncc project install --log-level debug -y
+          ncc build --config debug --log-level debug
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: debug
+          path: target/debug/net.nosial.federation_adguard.ncc
+
+  release:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/nosial/ncc:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Build project
+        run: |
+          ncc project install --log-level debug -y
+          ncc build --config release --log-level debug
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: target/release/net.nosial.federation_adguard.ncc
+
+  # Check for phpunit.xml
+  check-phpunit:
+    runs-on: ubuntu-latest
+    outputs:
+      phpunit-exists: ${{ steps.check.outputs.phpunit-exists }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Check for phpunit.xml
+        id: check
+        run: |
+          if [ -f phpunit.xml ]; then
+            echo "phpunit-exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "phpunit-exists=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Check for phpdoc.dist.xml
+  check-phpdoc:
+    runs-on: ubuntu-latest
+    outputs:
+      phpdoc-exists: ${{ steps.check.outputs.phpdoc-exists }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Check for phpdoc.dist.xml
+        id: check
+        run: |
+          if [ -f phpdoc.dist.xml ]; then
+            echo "phpdoc-exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "phpdoc-exists=false" >> $GITHUB_OUTPUT
+          fi
+
+  generate-phpdoc:
+    needs: [release, check-phpdoc]
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/nosial/ncc:latest
+    if: needs.check-phpdoc.outputs.phpdoc-exists == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Download PHPDocumentor
+        run: |
+          wget https://phpdoc.org/phpDocumentor.phar
+          chmod +x phpDocumentor.phar
+
+      - name: Generate PHPDoc
+        run: |
+          php phpDocumentor.phar -d src -t docs
+
+      - name: Archive PHPDoc
+        run: |
+          zip -r docs.zip docs
+
+      - name: Upload PHPDoc
+        uses: actions/upload-artifact@v7
+        with:
+          name: documentation
+          path: docs.zip
+
+
+  test:
+    needs: [release, debug, check-phpunit]
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/nosial/ncc:latest
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+    if: needs.check-phpunit.outputs.phpunit-exists == 'true'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Build project
+        run: ncc build --config=release --log-level debug
+
+      - name: Deploy Docker Compose environment
+        run: |
+          apt-get update -qq && apt-get install -y -qq docker.io docker-compose
+          docker-php-ext-install sockets
+          export DOCKER_BUILDKIT=1
+          # The Dockerfile installs the plugin built from this repository into ghcr.io/nosial/federationlib:dev
+          docker compose -f docker-compose.yml build --pull
+          docker compose -f docker-compose.yml up -d
+          echo "Waiting for the server to be ready..."
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://172.17.0.1:7000/; then
+              echo "Server is ready!"
+              exit 0
+            fi
+            echo "Attempt $i: server not ready yet, waiting 5 seconds..."
+            sleep 5
+          done
+          echo "Timeout: server did not become ready within 5 minutes"
+          docker compose -f docker-compose.yml logs app
+          exit 1
+
+      - name: Download PHPUnit
+        run: wget https://phar.phpunit.de/phpunit-11.3.phar
+
+      # FederationLib provides the plugin system, which is only on its dev branch, while the plugin's dependency resolves
+      # to FederationLib's latest release. FederationLib's dev branch is installed first, together with its dependencies,
+      # then the plugin package, whose net.nosial.federation dependency is then satisfied by it. tests/bootstrap.php
+      # imports the installed net.nosial.federation. The server the tests run against is FederationLib's published image
+      # (ghcr.io/nosial/federationlib:dev)
+      - name: Checkout FederationLib
+        uses: actions/checkout@v7
+        with:
+          repository: nosial/federationlib
+          ref: dev
+          path: federation
+
+      - name: Install packages
+        run: |
+          cd federation
+          ncc build --config=release --log-level debug
+          ncc install --package="$PWD/target/release/net.nosial.federation.ncc" --yes --reinstall
+          cd ..
+          ncc install --package="$PWD/target/release/net.nosial.federation_adguard.ncc" --yes --reinstall
+
+      - name: Run PHPUnit tests
+        env:
+          LOGLIB_UDP_ENABLED: false
+        run: |
+          mkdir -p "$PWD/reports"
+          chmod 777 "$PWD/reports"
+          php phpunit-11.3.phar --configuration phpunit.xml --log-junit "$PWD/reports/junit.xml" --log-teamcity "$PWD/reports/teamcity" --testdox-html "$PWD/reports/testdox.html" --testdox-text "$PWD/reports/testdox.txt"
+
+      - name: Collect server logs
+        if: always()
+        run: |
+          mkdir -p "$PWD/reports"
+          docker compose -f docker-compose.yml logs --no-color > "$PWD/reports/docker-compose.log" 2>&1 || true
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: reports
+
+      - name: Remove Docker Compose environment
+        if: always()
+        run: docker compose -f docker-compose.yml down -v || true
+
+
+  release-documentation:
+    needs: generate-phpdoc
+    permissions: write-all
+    runs-on: ubuntu-latest
+    container:
+      image: php:8.5
+    if: github.event_name == 'release'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Download documentation artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: documentation
+          path: documentation
+
+      - name: Upload documentation artifact
+        uses: softprops/action-gh-release@v3
+        with:
+            files: |
+                documentation/*
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+  release-artifacts:
+    needs: [debug, release, test]
+    permissions: write-all
+    runs-on: ubuntu-latest
+    container:
+      image: php:8.5
+    if: github.event_name == 'release'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Download debug artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: debug
+          path: debug
+
+      - name: Upload debug artifact to release
+        uses: softprops/action-gh-release@v3
+        with:
+            files: |
+                debug/*
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download release artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: release
+          path: release
+
+      - name: Upload release artifact to release
+        uses: softprops/action-gh-release@v3
+        with:
+            files: |
+                release/*
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
