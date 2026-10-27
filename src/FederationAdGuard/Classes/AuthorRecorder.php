@@ -9,7 +9,7 @@
     use FederationLib\Classes\Configuration as FederationConfiguration;
     use FederationLib\Classes\DatabaseConnection;
     use FederationLib\Classes\Managers\AuditLogManager;
-    use Federationhttps://github.com/fastvolt/markdownLib\Classes\Managers\BlacklistManager;
+    use FederationLib\Classes\Managers\BlacklistManager;
     use FederationLib\Classes\Managers\EntitiesManager;
     use FederationLib\Classes\Managers\EvidenceManager;
     use FederationLib\Classes\Utilities;
