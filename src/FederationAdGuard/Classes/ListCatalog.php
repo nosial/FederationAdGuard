@@ -21,10 +21,11 @@
          * @param string[] $languages Language codes; empty accepts all languages
          * @param int[] $excluded Operator-excluded directory IDs
          * @param int $limit Maximum automatic subscriptions
+         * @param int[] $preferred Operator-preferred directory IDs, selected first in this order when eligible
          * @return SubscriptionDefinition[] Definitions by subscription key
          * @throws ListException If directory metadata cannot be read
          */
-        public static function discover(FilterListsClientInterface $client, array $concerns, array $languages, array $excluded, int $limit): array
+        public static function discover(FilterListsClientInterface $client, array $concerns, array $languages, array $excluded, int $limit, array $preferred=[]): array
         {
             if($limit < 1 || $concerns === [])
             {
@@ -60,11 +61,10 @@
                 $candidates[$list->getId()] = $list;
             }
 
-            $preferredLists = array_flip(FilterListsConfiguration::PREFERRED_LISTS);
-            $priority = fn(FilterList $list) => $preferredLists[strtolower($list->getName())] ?? count($preferredLists);
+            $preferredLists = array_flip(array_values($preferred));
+            $priority = fn(FilterList $list) => $preferredLists[$list->getId()] ?? count($preferredLists);
             $preferences = array_flip(FilterListsConfiguration::SYNTAX_PREFERENCE);
             $rank = fn(FilterList $list) => min([count($preferences), ...array_map(fn(int $id) => $preferences[strtolower($syntaxes[$id]['name'])] ?? count($preferences), $list->getSyntaxIds())]);
-            // Prefer configured parser formats; alphabetic ties imply no quality or trust ranking.
             usort($candidates, fn(FilterList $a, FilterList $b) => [$priority($a), $rank($a), strtolower($a->getName()), $a->getId()] <=> [$priority($b), $rank($b), strtolower($b->getName()), $b->getId()]);
             $definitions = [];
             foreach(array_slice($candidates, 0, $limit) as $list)
