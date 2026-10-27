@@ -1,0 +1,16 @@
+.git/
+.gitignore
+.forgejo/
+.github/
+.idea/
+.phpunit.result.cache
+.dockerignore
+Dockerfile
+docker-compose.yml
+federation/
+Makefile
+phpunit-*.phar
+README.md
+reports/
+target/
+vendor/
